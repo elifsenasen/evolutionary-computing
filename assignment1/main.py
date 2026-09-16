@@ -1,9 +1,10 @@
-
+from fitness import evaluate, log_generation
 from rich.console import Console
 from rich.traceback import install
 from ariel.ec.genotypes.tree.operators import random_tree
 import numpy as np
 import random
+import fitness
 
 
 from ariel.ec import (
@@ -20,23 +21,24 @@ from ariel.ec import (
 install()
 console = Console()
 
-max_moduls = 20
+max_modules = 20
 population_size = 75
 
-def create_individual(max_moduls: int):
-    genome = random_tree(max_moduls)
+def create_individual(max_modules: int):
+    genome = random_tree(max_modules)
     individual = Individual()
     individual.genotype = genome.to_dict()
     individual.tags["ps"] = False # for chosen parents then we change this to true.
     return individual
 
 def create_population():
-    population = Population([create_individual(max_moduls) for _ in range(population_size)])
+    population = Population([create_individual(max_modules) for _ in range(population_size)])
     return population
 
 def ea(seed:int):
     np.random.seed(seed)
     random.seed(seed)
+    fitness.CURRENT_SEED = seed
 
     population = create_population()
 
@@ -44,7 +46,8 @@ def ea(seed:int):
         # EAOperation(parent_selection),
         # EAOperation(crossover),
         # EAOperation(mutate),
-        # EAOperation(evaluate),
+        EAOperation(evaluate),
+        EAOperation(log_generation),
         # EAOperation(survivor_selection),
     ]
 
@@ -58,7 +61,18 @@ def main():
     for seed in SEEDS:
         ea(seed)
  
+    print(f"Logged {len(fitness.LOG)} generation records")
+    print(fitness.LOG[:3])
 
+    fitness.save_log_csv()
+
+    targets = fitness.load_targets()
+    baseline_results = fitness.random_search_baseline(
+        num_evaluations=500,
+        targets=targets,
+    )
+    fitness.save_baseline_csv(baseline_results)
+    print("Saved fitness_log.csv and baseline_log.csv")
 
 if __name__ == "__main__":
     main()
