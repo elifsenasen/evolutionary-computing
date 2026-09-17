@@ -1,4 +1,6 @@
 from fitness import evaluate, log_generation
+from parent_selection import parent_selection
+from crossover import crossover
 from rich.console import Console
 from rich.traceback import install
 from ariel.ec.genotypes.tree.operators import random_tree
@@ -41,10 +43,11 @@ def ea(seed:int):
     fitness.CURRENT_SEED = seed
 
     population = create_population()
+    population = evaluate(population)
 
     ops = [
-        # EAOperation(parent_selection),
-        # EAOperation(crossover),
+        EAOperation(parent_selection),
+        EAOperation(crossover),
         # EAOperation(mutate),
         EAOperation(evaluate),
         EAOperation(log_generation),
