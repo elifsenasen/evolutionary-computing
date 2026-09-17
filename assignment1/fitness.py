@@ -2,7 +2,7 @@
 from ariel.ec import Population
 from pathlib import Path
 import networkx as nx
-
+import copy
 
 from ariel.ec.genotypes.tree.tree_genome import TreeGenome
 from ariel.body_phenotypes.robogen_lite.decoders._blueprint import (
@@ -13,6 +13,9 @@ from ariel.ec.genotypes.tree.operators import random_tree
 
 HERE = Path(__file__).parent
 TARGET_DIR = HERE / "target_bodies"
+best_individual = None
+evolution_count=0
+
 
 
 def decode_individual(individual):
@@ -40,10 +43,11 @@ TARGETS = load_targets()
 
 
 def evaluate(population: Population) -> Population:
-    """Score every individual in the population that needs it. Lower fitness is better."""
     to_eval = [ind for ind in population if ind.alive and ind.requires_eval]
     for ind in to_eval:
         ind.fitness = score_individual(ind, TARGETS)
+        global evolution_count
+        evolution_count += 1
     return population
 
 LOG: list[dict] = []
@@ -66,13 +70,6 @@ def random_search_baseline(
     targets: list[nx.DiGraph],
     max_modules: int = 20,
 ) -> list[float]:
-    """Score random bodies one at a time, tracking the best fitness so far.
-
-    Returns a list of length `num_evaluations`, where entry i is the best
-    (lowest) fitness seen across the first i+1 random bodies.
-    """
-    
-
     best_so_far = []
     best = float("inf")
     for _ in range(num_evaluations):
@@ -97,3 +94,22 @@ def save_baseline_csv(baseline_results, path="baseline_log.csv"):
         f.write("evaluation,best_so_far\n")
         for i, value in enumerate(baseline_results):
             f.write(f"{i+1},{value}\n")
+
+
+
+def save_best_individual(population: Population) -> Population:
+    alive = []
+    global best_individual
+    for ind in population:
+        if ind.alive and ind.fitness is not None:
+            alive.append(ind)
+
+
+    best = min(alive, key=lambda ind: ind.fitness)
+
+    best_individual = {
+        "fitness": float(best.fitness),
+        "genotype": copy.deepcopy(best.genotype),
+    }
+
+    return population
