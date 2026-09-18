@@ -55,7 +55,6 @@ CURRENT_SEED: int | None = None
 
 
 def log_generation(population: Population) -> Population:
-    """Record best, mean, and worst fitness for the current generation."""
     fitnesses = [ind.fitness for ind in population if ind.alive]
     LOG.append({
         "seed": CURRENT_SEED,

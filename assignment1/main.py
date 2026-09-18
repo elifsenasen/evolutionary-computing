@@ -1,8 +1,6 @@
 from collections import defaultdict
 from pathlib import Path
-
 import matplotlib.pyplot as plt
-import mujoco as mj
 import numpy as np
 import random
 import fitness
@@ -13,12 +11,6 @@ from mutation import mutate, survivor_selection
 from rich.console import Console
 from rich.traceback import install
 from ariel.ec.genotypes.tree.operators import random_tree
-# from ariel.ec.genotypes.tree.tree_genome import TreeGenome
-# from ariel.simulation.environments import SimpleFlatWorld
-# from ariel.utils.renderers import single_frame_renderer
-# from ariel.body_phenotypes.robogen_lite.constructor import (
-#     construct_mjspec_from_graph,
-# )
 from ariel.ec import (
     EA,
     EAOperation,
@@ -26,15 +18,10 @@ from ariel.ec import (
     Population,
 )
 
-
 install()
 console = Console()
 
-
-# ============================================================
-# EXPERIMENT SETTINGS
-# ============================================================
-
+# parameters
 max_modules = 20
 population_size = 75
 num_generations = 100
@@ -43,18 +30,11 @@ SEEDS = [42, 123, 456, 789, 1011]
 
 
 
-# ============================================================
-# OUTPUT DIRECTORY
-# ============================================================
-
+#output directory
 HERE = Path(__file__).parent
 DATA = HERE / "__data__"
 DATA.mkdir(parents=True, exist_ok=True)
 
-
-# ============================================================
-# POPULATION CREATION
-# ============================================================
 
 def create_individual(max_modules: int):
     genome = random_tree(max_modules)
@@ -100,11 +80,8 @@ def ea(seed: int, mutation_rate: float):
     return evaluation_count
 
 
-# ============================================================
-# RUN ONE VARIANT ACROSS ALL 5 SEEDS
-# ============================================================
 
-def run_variant(variant_name: str, mutation_rate: float) :
+def run_variant(variant_name: str, mutation_rate: float):
 
     best_per_run = []
     evaluation_counts = []
@@ -142,155 +119,125 @@ def run_variant(variant_name: str, mutation_rate: float) :
     return best_per_run, evaluation_counts
 
 
+def plot_fitness_curves(path: Path, baseline_runs: list[list[float]]):
 
-# def save_full_log_csv(path: Path) -> None:
+    per_variant = defaultdict(lambda: defaultdict(list))
 
-#     with open(path, "w") as f:
-
-#         f.write(
-#             "variant,mutation_rate,seed,"
-#             "generation,best,mean,worst\n"
-#         )
-
-#         for row in fitness.LOG:
-
-#             f.write(
-#                 f"{row['variant']},"
-#                 f"{row['mutation_rate']},"
-#                 f"{row['seed']},"
-#                 f"{row['generation']},"
-#                 f"{row['best']},"
-#                 f"{row['mean']},"
-#                 f"{row['worst']}\n"
-#             )
-
-
-def plot_fitness_curves(path: Path, baseline_best: float) -> None:
-
-    per_variant = defaultdict(
-        lambda: defaultdict(list)
-    )
-
-    for row in fitness.LOG:
-
-        per_variant[
-            row["variant"]
-        ][
-            row["generation"]
-        ].append(row["best"])
+    for i in fitness.LOG:
+        variant = i["variant"]
+        generation = i["generation"]
+        per_variant[variant][generation].append(i["best"])
 
     plt.figure(figsize=(8, 5))
 
-    for variant_name, gens in per_variant.items():
+    display_names = {
+        "EA1_mutation_0.1": "EA, mutation rate = 0.1",
+        "EA2_mutation_0.3": "EA, mutation rate = 0.3",
+    }
 
-        generations = sorted(gens)
+    # Plot the two EA variants
+    for variant_name, generations_data in per_variant.items():
 
-        means = np.array(
-            [
-                np.mean(gens[g])
-                for g in generations
-            ]
-        )
+        all_means = []
+        all_stds = []
+        generations = sorted(generations_data.keys())
+        for i in generations:
+            fitness_values = generations_data[i]
+            fitness_means = np.mean(fitness_values)
+            fitness_stds = np.std(fitness_values)
+            all_means.append(fitness_means)
+            all_stds.append(fitness_stds)
 
-        stds = np.array(
-            [
-                np.std(gens[g])
-                for g in generations
-            ]
-        )
+        means = np.array(all_means)
+
+        stds = np.array(all_stds)
 
         plt.plot(
             generations,
             means,
-            label=variant_name,
+            linewidth=2,
+            label=display_names.get(
+                variant_name,
+                variant_name,
+            ),
         )
 
         plt.fill_between(
             generations,
             means - stds,
             means + stds,
-            alpha=0.2,
+            alpha=0.20,
         )
 
-    plt.axhline(
-        y=baseline_best,
+    # Convert random-search evaluations to generation-equivalent points
+    baseline_by_generation = []
+
+    for run in baseline_runs:
+
+        sampled_run = []
+
+        for generation in range(1, num_generations + 1):
+
+            evaluation_index = int(np.ceil(generation * len(run) / num_generations)) - 1
+            sampled_run.append(run[evaluation_index])
+
+        baseline_by_generation.append(sampled_run)
+
+    baseline_array = np.array(
+        baseline_by_generation
+    )
+
+    baseline_mean = np.mean(
+        baseline_array,
+        axis=0,
+    )
+
+    baseline_std = np.std(
+        baseline_array,
+        axis=0,
+    )
+
+    generations = np.arange(
+        1,
+        num_generations + 1,
+    )
+
+    plt.plot(
+        generations,
+        baseline_mean,
+        color="black",
         linestyle="--",
-        label="Random search final mean",
+        linewidth=2,
+        label="Random search",
+    )
+
+    plt.fill_between(
+        generations,
+        baseline_mean - baseline_std,
+        baseline_mean + baseline_std,
+        color="gray",
+        alpha=0.20,
     )
 
     plt.xlabel("Generation")
-
-    plt.ylabel(
-        "Best fitness "
-        "(tree edit distance + std, lower is better)"
-    )
+    plt.ylabel("Best-so-far fitness (lower is better)")
 
     plt.title(
-        "Effect of mutation rate on evolved body fitness"
+        "EA variants compared with random search"
     )
 
+    plt.grid(alpha=0.25)
     plt.legend()
     plt.tight_layout()
-
-    plt.savefig(path)
+    plt.savefig(path, dpi=300)
     plt.close()
 
-    console.log(f"saved {path}")
-
-
-# VISUALIZE BEST BODY
-
-# def visualize_best(
-#     genotype: dict,
-#     file_name: str,
-# ) -> None:
-
-#     mj.set_mjcb_control(None)
-
-#     genome = TreeGenome.from_dict(genotype)
-
-#     body = genome.to_networkx()
-
-#     world = SimpleFlatWorld()
-
-#     robot = construct_mjspec_from_graph(body)
-
-#     world.spawn(
-#         robot.spec,
-#         position=[0.0, 0.0, 0.1],
-#         correct_collision_with_floor=True,
-#     )
-
-#     model = world.spec.compile()
-
-#     data = mj.MjData(model)
-
-#     mj.mj_resetData(model, data)
-#     mj.mj_forward(model, data)
-
-#     save_path = str(
-#         DATA / f"{file_name}.png"
-#     )
-
-#     single_frame_renderer(
-#         model,
-#         data,
-#         save=True,
-#         save_path=save_path,
-#     )
-
-#     console.log(f"saved {save_path}")
-
-
-# ============================================================
-# MAIN EXPERIMENT
-# ============================================================
 
 def main():
 
     # Avoid old data if main() is executed again
     fitness.LOG.clear()
-
+    # 2 different mutation rates for research question
     best_ea1, budgets_ea1 = run_variant(
         "EA1_mutation_0.1",
         0.1
@@ -300,13 +247,10 @@ def main():
         "EA2_mutation_0.3",
         0.3
     )
+    if (budgets_ea1 == budgets_ea2):
+        console.log("Both variants used the same evaluation budget.")
 
-
-
-    # --------------------------------------------------------
-    # RANDOM SEARCH BASELINE
-    # --------------------------------------------------------
-
+    # Rrandom search baseline
     targets = fitness.load_targets()
 
     
@@ -324,63 +268,12 @@ def main():
         )
 
         baseline_runs.append(baseline)
+    
+    # fitness plot
+    plot_fitness_curves(DATA / "fitness_vs_generation.png", baseline_runs)
 
 
-    # --------------------------------------------------------
-    # SAVE RANDOM SEARCH RESULTS
-    # --------------------------------------------------------
-
-    # baseline_path = DATA / "baseline_log.csv"
-
-    # with open(baseline_path, "w") as f:
-
-    #     f.write(
-    #         "seed,evaluation,best_so_far\n"
-    #     )
-    #     for seed in range(len(SEEDS)):
-    #         run = baseline_runs[seed]
-
-    #         for i in range(len(run)):
-    #             evaluation = i + 1
-    #             value = run[i]
-
-    #             f.write(
-    #                 f"{SEEDS[seed]},"
-    #                 f"{evaluation},"
-    #                 f"{value}\n"
-    #             )
-
-
-    # console.log(
-    #     "saved fitness_log.csv and baseline_log.csv"
-    # )
-
-
-    # --------------------------------------------------------
-    # RANDOM SEARCH SUMMARY
-    # --------------------------------------------------------
-
-    baseline_final = []
-    for run in baseline_runs:
-        baseline_final.append(run[-1])
-
-    baseline_mean = np.mean(baseline_final)
-
-
-    # --------------------------------------------------------
-    # FITNESS PLOT
-    # --------------------------------------------------------
-
-    plot_fitness_curves(
-        DATA / "fitness_vs_generation.png",
-        baseline_mean,
-    )
-
-
-    # --------------------------------------------------------
     # FIND BEST BODY ACROSS BOTH VARIANTS
-    # --------------------------------------------------------
-
     best_variant = None
     best_genotype = None
     best_fitness = float("inf")
@@ -402,17 +295,6 @@ def main():
         f"{best_variant}, "
         f"fitness={best_fitness:.4f}"
     )
-
-
-    # ------------------------zz--------------------------------
-    # VISUALIZE BEST BODY
-    # --------------------------------------------------------
-
-    # visualize_best(
-    #     best_genotype,
-    #     file_name="best_body",
-    # )
-
 
 if __name__ == "__main__":
     main()
