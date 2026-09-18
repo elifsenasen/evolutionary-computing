@@ -59,7 +59,7 @@ def ea(seed: int, mutation_rate: float):
     fitness.best_individual = None
 
     population = create_population()
-    population = evaluate(population) # for first generation
+    population = evaluate(population) #for first generation
 
     ops = [
         EAOperation(parent_selection),
@@ -68,7 +68,7 @@ def ea(seed: int, mutation_rate: float):
         EAOperation(evaluate),
         EAOperation(survivor_selection, target_size=population_size),
         EAOperation(log_generation),
-        EAOperation(fitness.save_best_individual),# Save best fitness/genotype while Individuals are
+        EAOperation(fitness.save_best_individual),# Save best fitness/genotype 
 
     ]
 
@@ -90,12 +90,8 @@ def run_variant(variant_name: str, mutation_rate: float):
 
         # Remember where this run starts in the global log.
         start = len(fitness.LOG)
-
         evaluation_count = ea(seed=seed, mutation_rate=mutation_rate)
         evaluation_counts.append(evaluation_count)
-
-        # Add experiment information to the rows produced
-        # during this run.
 
         for generation, row in enumerate(fitness.LOG[start:], start=1):
             row["variant"] = variant_name
@@ -168,21 +164,14 @@ def plot_fitness_curves(path: Path, baseline_runs: list[list[float]]):
             means + stds,
             alpha=0.20,
         )
-
-    # Convert random-search evaluations to generation-equivalent points
     baseline_by_generation = []
-
     for run in baseline_runs:
-
         sampled_run = []
-
         for generation in range(1, num_generations + 1):
 
             evaluation_index = int(np.ceil(generation * len(run) / num_generations)) - 1
             sampled_run.append(run[evaluation_index])
-
         baseline_by_generation.append(sampled_run)
-
     baseline_array = np.array(
         baseline_by_generation
     )
@@ -235,7 +224,6 @@ def plot_fitness_curves(path: Path, baseline_runs: list[list[float]]):
 
 def main():
 
-    # Avoid old data if main() is executed again
     fitness.LOG.clear()
     # 2 different mutation rates for research question
     best_ea1, budgets_ea1 = run_variant(
@@ -252,10 +240,7 @@ def main():
 
     # Rrandom search baseline
     targets = fitness.load_targets()
-
-    
     baseline_runs = []
-
     for i in range(len(SEEDS)):
 
         np.random.seed(SEEDS[i])
@@ -266,14 +251,12 @@ def main():
             targets=targets,
             max_modules=max_modules,
         )
-
         baseline_runs.append(baseline)
-    
+
     # fitness plot
     plot_fitness_curves(DATA / "fitness_vs_generation.png", baseline_runs)
 
-
-    # FIND BEST BODY ACROSS BOTH VARIANTS
+    # find best body
     best_variant = None
     best_genotype = None
     best_fitness = float("inf")
