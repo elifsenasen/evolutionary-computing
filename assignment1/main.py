@@ -118,7 +118,8 @@ def run_variant(variant_name: str, mutation_rate: float):
 def plot_fitness_curves(path: Path, baseline_runs: list[list[float]]):
 
     per_variant = defaultdict(lambda: defaultdict(list))
-
+    global baseline_mean
+    global baseline_std
     for i in fitness.LOG:
         variant = i["variant"]
         generation = i["generation"]
@@ -176,6 +177,7 @@ def plot_fitness_curves(path: Path, baseline_runs: list[list[float]]):
         baseline_by_generation
     )
 
+    
     baseline_mean = np.mean(
         baseline_array,
         axis=0,
@@ -221,6 +223,13 @@ def plot_fitness_curves(path: Path, baseline_runs: list[list[float]]):
     plt.savefig(path, dpi=300)
     plt.close()
 
+def save_fitness_log(path: Path) -> None:
+    with open(path, "w") as f:
+        f.write("variant,mutation_rate,seed,generation,best,mean,worst\n")
+        for row in fitness.LOG:
+            f.write(
+                f"{row['variant']},{row['mutation_rate']},{row['seed']},{row['generation']},{row['best']},{row['mean']},{row['worst']}\n"
+            )
 
 def main():
 
@@ -278,6 +287,8 @@ def main():
         f"{best_variant}, "
         f"fitness={best_fitness:.4f}"
     )
+    save_fitness_log(DATA / "fitness_log.csv")
+    console.log(f"Random search: {baseline_mean[-1]:.4f} ± {baseline_std[-1]:.4f}")
 
 if __name__ == "__main__":
     main()
