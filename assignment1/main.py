@@ -22,7 +22,7 @@ install()
 console = Console()
 
 # parameters
-max_modules = 20
+max_modules = 30 
 population_size = 75
 num_generations = 100
 
@@ -239,14 +239,11 @@ def main():
         "EA1_mutation_0.1",
         0.1
     )
-
     best_ea2, budgets_ea2 = run_variant(
         "EA2_mutation_0.3",
         0.3
     )
-    if (budgets_ea1 == budgets_ea2):
-        console.log("Both variants used the same evaluation budget.")
-
+    common_budget = min(min(budgets_ea1), min(budgets_ea2))
     # Rrandom search baseline
     targets = fitness.load_targets()
     baseline_runs = []
@@ -254,9 +251,8 @@ def main():
 
         np.random.seed(SEEDS[i])
         random.seed(SEEDS[i])
-        evaluation_budget = budgets_ea1[i]
         baseline = fitness.random_search_baseline(
-            num_evaluations=evaluation_budget,
+            num_evaluations=common_budget,
             targets=targets,
             max_modules=max_modules,
         )
