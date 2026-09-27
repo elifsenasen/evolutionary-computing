@@ -177,3 +177,5 @@ In the meantime, if you use ARIEL in your research, please cite the repository:
 ## License
 
 Distributed under the terms of the [GPL-3.0 license](LICENSE). ARIEL is free and open source software.
+
+#run comment: PYTHONPATH=src uv run python assignment1/main.py

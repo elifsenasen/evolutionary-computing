@@ -277,7 +277,7 @@ def main():
             best_fitness = fitness_value
             best_genotype = genotype
             best_variant = "EA2_mutation_0.3"
-
+        
     console.log(
         f"best overall: "
         f"{best_variant}, "
